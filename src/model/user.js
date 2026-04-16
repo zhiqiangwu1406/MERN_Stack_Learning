@@ -29,20 +29,25 @@ const userSchema = new Schema(
     profile_photo: {
       type: String,
     },
+    cover_photo: {
+      type: String,
+    },
     posts: [
       {
         type: Schema.Types.ObjectId,
         ref: "Post",
       },
     ],
+    refresh_token: {
+      type: String,
+    },
   },
   { timestamps: true },
 );
 
-userSchema.pre("save", async function (next) {
-  if (this.isModified(this.password)) return next();
+userSchema.pre("save", async function () {
+  if (!this.isModified("password")) return;
   this.password = await bcrypt.hash(this.password, 10);
-  next();
 });
 
 userSchema.methods.isPasswordMatch = async function (pass) {
@@ -68,5 +73,4 @@ userSchema.methods.generateRefreshToken = async function () {
   });
 };
 
-userSchema.plugin(mongooseAggregatePaginate);
 export const User = mongoose.model("User", userSchema);
