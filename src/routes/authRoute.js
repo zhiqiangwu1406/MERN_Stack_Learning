@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { registerController } from "../controllers/auth.js";
 import { upload } from "../middlewares/multer_storage.js";
+import { loginController } from "../controllers/auth.js";
+
 const router = Router();
 
 router.post(
@@ -11,5 +13,7 @@ router.post(
   ]),
   registerController,
 );
+
+router.post("/login", upload.none(), loginController);
 
 export default router;

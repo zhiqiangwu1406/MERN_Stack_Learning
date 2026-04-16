@@ -51,3 +51,61 @@ export const registerController = async (req, res) => {
       : null;
   }
 };
+
+const generateAccessAndRefreshToken = async (userId) => {
+  try {
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new Error("User Not Found");
+    }
+    const accessToken = await user.generateAccessToken();
+    const refreshToken = await user.generateRefreshToken();
+    user.refresh_token = refreshToken;
+    await user.save({ validateBeforeSave: false });
+    return { accessToken, refreshToken };
+  } catch (error) {
+    console.log(error);
+    throw new Error("Something went wrong.");
+  }
+};
+
+export const loginController = async (req, res) => {
+  try {
+    const { userOrEmail, password } = req.body;
+
+    if (!(userOrEmail && password)) {
+      return res.status(401).json({ message: "All fields are required." });
+    }
+
+    const existingUser = await User.findOne({
+      $or: [{ username: userOrEmail }, { email: userOrEmail }],
+    });
+    if (!existingUser) {
+      return res.status(404).json({ message: "User not found." });
+    }
+    const passwordMatch = await existingUser.isPasswordMatch(password);
+    if (!passwordMatch) {
+      return res.status(401).json({ message: "Incorrect Credentials." });
+    }
+    const { accessToken, refreshToken } = await generateAccessAndRefreshToken(
+      existingUser._id,
+    );
+
+    const cookieoptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+    };
+
+    const userToLog = await User.findById(existingUser._id).select(
+      "-password -refresh_token",
+    );
+    res
+      .status(200)
+      .cookie("accessToken", accessToken, cookieoptions)
+      .cookie("refreshToken", refreshToken, cookieoptions)
+      .json({ user: userToLog, message: "Login Success." });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ message: "Internal server error." });
+  }
+};
