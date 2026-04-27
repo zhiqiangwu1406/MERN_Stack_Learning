@@ -112,13 +112,13 @@ export const loginController = async (req, res) => {
 };
 
 export const generateNewRefreshToken = async (req, res) => {
-  const incomingRefreshToken =
-    req.cookies.refreshToken || req.body.refreshToken;
-  if (!incomingRefreshToken) {
-    return res.status(401).json({ message: "No token found!" });
-  }
-
   try {
+    const incomingRefreshToken =
+      req.cookies.refreshToken || req.body.refreshToken;
+    if (!incomingRefreshToken) {
+      return res.status(401).json({ message: "No token found!" });
+    }
+
     const decodedToken = jwt.verify(
       incomingRefreshToken,
       process.env.REFRESHTOKEN_SECRETKEY,
@@ -126,8 +126,8 @@ export const generateNewRefreshToken = async (req, res) => {
     const userId = decodedToken?._id;
     const existingUser = await User.findById(userId);
 
-    if (!existingUser) {
-      return res.status(404).json({ message: "No user found" });
+    if (!existingUser || !existingUser.refresh_token) {
+      return res.status(401).json({ message: "Invalid Session" });
     }
 
     if (incomingRefreshToken !== existingUser.refresh_token) {
@@ -148,5 +148,36 @@ export const generateNewRefreshToken = async (req, res) => {
   } catch (error) {
     console.log(error);
     return res.status(500).json({ message: "Something went wrong" });
+  }
+};
+
+export const logoutController = async (req, res) => {
+  try {
+    if (!req.user || !req.user._id) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const deletedUser = await User.findByIdAndUpdate(
+      req.user._id,
+      { refresh_token: null }, //set refresh token to null
+      // delete refresh_token
+      // $unset{refresh_token: 1,}
+      { new: true },
+    );
+    const loggedUser = await User.findById(req.user._id).select(
+      "-password -refresh_token",
+    );
+    const cookieoptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+    };
+    return res
+      .status(200)
+      .clearCookie("accessToken", cookieoptions)
+      .clearCookie("refreshToken", cookieoptions)
+      .json({ loggedUser, message: "logout successful." });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({ messge: "Something went wrong." });
   }
 };
