@@ -32,15 +32,15 @@ const userSchema = new Schema(
     cover_photo: {
       type: String,
     },
+    refresh_token: {
+      type: String,
+    },
     posts: [
       {
         type: Schema.Types.ObjectId,
         ref: "Post",
       },
     ],
-    refresh_token: {
-      type: String,
-    },
   },
   { timestamps: true },
 );
@@ -63,13 +63,13 @@ userSchema.methods.generateAccessToken = async function () {
       username: this.username,
     },
     process.env.ACCESSTOKEN_SECRETKEY,
-    { expiresIn: "1d" },
+    { expiresIn: "1h" },
   );
 };
 
 userSchema.methods.generateRefreshToken = async function () {
   return jwt.sign({ _id: this._id }, process.env.REFRESHTOKEN_SECRETKEY, {
-    expiresIn: "1d",
+    expiresIn: "7d",
   });
 };
 

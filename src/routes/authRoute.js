@@ -1,5 +1,8 @@
 import { Router } from "express";
-import { registerController } from "../controllers/auth.js";
+import {
+  generateNewRefreshToken,
+  registerController,
+} from "../controllers/auth.js";
 import { upload } from "../middlewares/multer_storage.js";
 import { loginController } from "../controllers/auth.js";
 
@@ -15,5 +18,5 @@ router.post(
 );
 
 router.post("/login", upload.none(), loginController);
-
+router.post("/refresh", upload.none(), generateNewRefreshToken);
 export default router;

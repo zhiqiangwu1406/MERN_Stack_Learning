@@ -1,6 +1,7 @@
 import fs from "fs";
 import { uploadFileToCloudinary } from "../utils/cloudinary.js";
 import { User } from "../model/user.js";
+import jwt from "jsonwebtoken";
 export const registerController = async (req, res) => {
   let profile_photo_filepath, cover_photo_filepath;
   try {
@@ -107,5 +108,45 @@ export const loginController = async (req, res) => {
   } catch (error) {
     console.log(error);
     return res.status(500).json({ message: "Internal server error." });
+  }
+};
+
+export const generateNewRefreshToken = async (req, res) => {
+  const incomingRefreshToken =
+    req.cookies.refreshToken || req.body.refreshToken;
+  if (!incomingRefreshToken) {
+    return res.status(401).json({ message: "No token found!" });
+  }
+
+  try {
+    const decodedToken = jwt.verify(
+      incomingRefreshToken,
+      process.env.REFRESHTOKEN_SECRETKEY,
+    );
+    const userId = decodedToken?._id;
+    const existingUser = await User.findById(userId);
+
+    if (!existingUser) {
+      return res.status(404).json({ message: "No user found" });
+    }
+
+    if (incomingRefreshToken !== existingUser.refresh_token) {
+      return res.status(401).json({ message: "invalid refresh token" });
+    }
+    const { newAccessToken, newRefreshToken } =
+      await generateAccessAndRefreshToken(userId);
+
+    const cookieoptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+    };
+    return res
+      .status(200)
+      .cookie("accessToken", newAccessToken, cookieoptions)
+      .cookie("refreshToken", newRefreshToken, cookieoptions)
+      .json({ message: "token updated" });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ message: "Something went wrong" });
   }
 };
